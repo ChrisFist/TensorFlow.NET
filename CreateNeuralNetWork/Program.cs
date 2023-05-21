@@ -1,4 +1,6 @@
-﻿namespace CreateNeuralNetWork
+﻿using System;
+
+namespace CreateNeuralNetWork
 {
     internal class Program
     {
@@ -18,13 +20,12 @@
                 new double[] { 1, 1, 1, 1, 1, 1, 1, 8 },
                 new double[] { 1, 1, 1, 1, 0, 0, 1, 9 },
                 new double[] { 1, 1, 1, 0, 1, 1, 1, 0 },
-
           };
 
             NeuralNetworkGenerator NTF = new NeuralNetworkGenerator();
-            //trainingTF = NTF.GenerateTrainingData(trainingTF);
+            trainingTF = NTF.GenerateTrainingData(trainingTF);
             var graph = NTF.BuildNeuralNetwork();
-            NTF.TrainNeuralNetwork(graph, trainingTF, 500);
+            NTF.TrainNeuralNetwork(graph, trainingTF, 10000);
             var output = NTF.PredictOutputs(graph, trainingTF);
         }
     }

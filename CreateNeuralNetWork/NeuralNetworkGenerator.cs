@@ -12,7 +12,7 @@ namespace CreateNeuralNetWork
 {
     public class NeuralNetworkGenerator
     {
-        private string savePath = "C:\\Users\\Admin\\Downloads";
+        private string savePath = "C:\\Users\\Admin\\Documents\\Test";
 
         private Session session = null;
 
@@ -48,8 +48,15 @@ namespace CreateNeuralNetWork
         {
             var trainingHistory = new TrainingHistory();
             // Prepare the training data
-            var inputs = trainingData.Select(data => data.Take(data.Length - 1).ToArray()).ToArray();
-            var labels = trainingData.Select(data => data[data.Length - 1]).ToArray();
+            double[][] inputs = (trainingData.Select(data => data.Take(data.Length - 1).ToArray()).ToArray());
+            double[] labels = (trainingData.Select(data => data[data.Length - 1]).ToArray());
+
+            int rows = inputs.Length;
+            int cols = inputs[0].Length;
+            double[,] multidimensionalInput = prepareInput4NN(inputs, rows, cols);
+
+            // Now you can pass the multidimensionalArray to the desired method
+
 
             //var inputs = trainingData.Select(data => new Tensor(data.Take(data.Length - 1).ToArray())).ToArray();
             //var labels = trainingData.Select(data => new Tensor(data[data.Length - 1])).ToArray();
@@ -97,22 +104,12 @@ namespace CreateNeuralNetWork
 
                 if (optimizerOp != null)
                 {// Run one training step
-                    Console.WriteLine("input");
-                    var inp = new FeedItem(inputTensor, inputs);
-                    print(inp);
-                    Console.WriteLine("Labels");
-                    var lab = new FeedItem(labelPlaceholder, labels);
-                    print(lab);
 
-                    var value = inp.Value as Array;  // Get the value of the feed item
-                    Console.WriteLine(value);
-                    value = lab.Value as Array;
-                    Console.WriteLine(value);
-
-                    session.run(optimizerOp, new FeedItem[] { new FeedItem(inputTensor, inputs), new FeedItem(labelPlaceholder, labels) });
+                    session.run(optimizerOp, new FeedItem[] { new FeedItem(inputTensor, multidimensionalInput),
+                                                              new FeedItem(labelPlaceholder, labels) });
                 }
                 // Calculate and store metrics
-                var epochLoss = session.run(loss, new FeedItem(inputTensor, inputs), new FeedItem(labelPlaceholder, labels));
+                var epochLoss = session.run(loss, new FeedItem(inputTensor, multidimensionalInput), new FeedItem(labelPlaceholder, labels));
                 trainingHistory.Loss.Add(epochLoss);
             }
 
@@ -124,10 +121,29 @@ namespace CreateNeuralNetWork
 
         }
 
-        public float[] PredictOutputs(Graph graph, double[][] inputData)
+        private static double[,] prepareInput4NN(double[][] inputs, int rows, int cols)
+        {
+            double[,] multidimensionalInput = new double[rows, cols];
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    multidimensionalInput[i, j] = inputs[i][j];
+                }
+            }
+
+            return multidimensionalInput;
+        }
+
+        public double[] PredictOutputs(Graph graph, double[][] inputData)
         {
             // Prepare the input data
             var inputs = inputData.Select(data => data.Take(data.Length - 1).ToArray()).ToArray();
+
+            int rows = inputs.Length;
+            int cols = inputs[0].Length;
+            double[,] multidimensionalInput = prepareInput4NN(inputs, rows, cols);
 
 
             // Restore the saved model variables
@@ -139,10 +155,10 @@ namespace CreateNeuralNetWork
             var outputTensor = graph.get_operation_by_name("activated_output").outputs[0];
 
             // Perform inference
-            var outputs = session.run(outputTensor, new FeedItem(inputTensor, inputs));
+            var outputs = session.run(outputTensor, new FeedItem(inputTensor, multidimensionalInput));
 
             // Convert the output to float array
-            var predictedOutputs = outputs.ToArray<float>();
+            var predictedOutputs = outputs.ToArray<double>();
 
             return predictedOutputs;
 
@@ -150,15 +166,16 @@ namespace CreateNeuralNetWork
 
         private void SaveTrainingHistoryToCsv(TrainingHistory trainingHistory, string savePath)
         {
-            using (var writer = new StreamWriter(savePath))
+
+            using (StreamWriter writer = File.AppendText(savePath + "\\ErrorNN.csv"))
             {
                 // Write header
-                writer.WriteLine("Epoch,Loss");
+                writer.WriteLine("Epoch;Loss");
 
                 // Write data rows
                 for (int epoch = 0; epoch < trainingHistory.Loss.Count; epoch++)
                 {
-                    writer.WriteLine($"{epoch + 1},{trainingHistory.Loss[epoch]}");
+                    writer.WriteLine($"{epoch + 1};{trainingHistory.Loss[epoch]}");
                 }
             }
         }
