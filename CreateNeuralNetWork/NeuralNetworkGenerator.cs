@@ -57,22 +57,12 @@ namespace CreateNeuralNetWork
 
             // Now you can pass the multidimensionalArray to the desired method
 
-
-            //var inputs = trainingData.Select(data => new Tensor(data.Take(data.Length - 1).ToArray())).ToArray();
-            //var labels = trainingData.Select(data => new Tensor(data[data.Length - 1])).ToArray();
-
             // Initialize variables
             session.run(tf.global_variables_initializer());
-
-            //foreach (var input in graph.get_operations()) {
-            //   string s= input.name;
-            //   string name = input.name;
-            //}
 
             // Define placeholders for inputs and labels
             var inputTensor = graph.get_operation_by_name("input").output;
             var labelTensor = graph.get_operation_by_name("label").output;
-
 
             // Define the loss and optimizer
             var outputTensor = graph.get_operation_by_name("activated_output").output;
@@ -93,10 +83,6 @@ namespace CreateNeuralNetWork
 
                 Console.WriteLine("Help");
             }
-
-            //tf.train.export_meta_graph(@"C:\\Users\\Admin\\Downloads\\meta.txt", as_text: true);
-            //var showgraph = graph.as_graph_def();
-            //showgraph.WriteTo()
 
             // Perform training
             for (int epoch = 0; epoch < numEpochs; epoch++)
@@ -144,7 +130,6 @@ namespace CreateNeuralNetWork
             int rows = inputs.Length;
             int cols = inputs[0].Length;
             double[,] multidimensionalInput = prepareInput4NN(inputs, rows, cols);
-
 
             // Restore the saved model variables
             var saver = tf.train.Saver();
