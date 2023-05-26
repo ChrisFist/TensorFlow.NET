@@ -33,13 +33,15 @@ namespace CreateNeuralNetWork
             var biases2 = tf.Variable(tf.zeros(new Shape(1)), dtype: TF_DataType.TF_DOUBLE, name: "biases2", trainable: true);
 
             // Define the hidden layer
-            var hidden = tf.add(tf.matmul(input, weights1), biases1);
+            //var hidden = tf.add(tf.matmul(input, weights1), biases1);
+            var hidden = tf.nn.relu(tf.add(tf.matmul(input, weights1), biases1));
 
             // Define the output layer
-            var output = tf.add(tf.matmul(hidden, weights2), biases2, "label");
+            //var output = tf.add(tf.matmul(hidden, weights2), biases2, "label");
+            var output = tf.nn.softmax(tf.add(tf.matmul(hidden, weights2), biases2, "label"));
 
             // Apply the activation function to the output layer (e.g., sigmoid)
-            var activatedOutput = tf.sigmoid(output, "activated_output");
+            //var activatedOutput = tf.sigmoid(output, "activated_output");
 
             return graph;
         }
@@ -55,35 +57,42 @@ namespace CreateNeuralNetWork
             int cols = inputs[0].Length;
             double[,] multidimensionalInput = prepareInput4NN(inputs, rows, cols);
 
-            // Now you can pass the multidimensionalArray to the desired method
+            int numClasses = 10; // Assuming 10 classes (0 to 9)
+            double[][] oneHotLabels = new double[labels.Length][];
+            for (int i = 0; i < labels.Length; i++)
+            {
+                int classIndex = (int)labels[i];
+                oneHotLabels[i] = new double[numClasses];
+                oneHotLabels[i][classIndex] = 1;
+            }
 
-            // Initialize variables
-            session.run(tf.global_variables_initializer());
 
             // Define placeholders for inputs and labels
             var inputTensor = graph.get_operation_by_name("input").output;
-            var labelTensor = graph.get_operation_by_name("label").output;
+            //var labelTensor = graph.get_operation_by_name("label").output;
 
             // Define the loss and optimizer
-            var outputTensor = graph.get_operation_by_name("activated_output").output;
+            var outputTensor = graph.get_operation_by_name("label").output;
             var labelPlaceholder = tf.placeholder(TF_DataType.TF_DOUBLE, new Shape(-1));
+
             var loss = tf.reduce_mean(tf.square(tf.subtract(labelPlaceholder, outputTensor)));
 
-            var optimizer = tf.train.GradientDescentOptimizer(learning_rate: 0.01f);
+            // Define the optimizer
+            var optimizer = tf.train.AdamOptimizer(learning_rate: 0.01f);
+
+            //var optimizer = tf.train.GradientDescentOptimizer(learning_rate: 0.01f);
             var trainableVariables = graph.get_collection_ref<IVariableV1>("trainable_variables");
             Operation optimizerOp = null;
             if (trainableVariables != null)
             {
                 optimizerOp = optimizer.minimize(loss, var_list: trainableVariables);
-
             }
-
             if (optimizerOp == null)
             {
-
                 Console.WriteLine("Help");
             }
 
+            session.run(tf.global_variables_initializer());
             // Perform training
             for (int epoch = 0; epoch < numEpochs; epoch++)
             {
@@ -92,7 +101,7 @@ namespace CreateNeuralNetWork
                 {// Run one training step
 
                     session.run(optimizerOp, new FeedItem[] { new FeedItem(inputTensor, multidimensionalInput),
-                                                              new FeedItem(labelPlaceholder, labels) });
+                                                              new FeedItem(labelPlaceholder, oneHotLabels) });
                 }
                 // Calculate and store metrics
                 var epochLoss = session.run(loss, new FeedItem(inputTensor, multidimensionalInput), new FeedItem(labelPlaceholder, labels));
@@ -145,6 +154,7 @@ namespace CreateNeuralNetWork
             // Convert the output to float array
             var predictedOutputs = outputs.ToArray<double>();
 
+          
             return predictedOutputs;
 
         }
@@ -152,7 +162,7 @@ namespace CreateNeuralNetWork
         private void SaveTrainingHistoryToCsv(TrainingHistory trainingHistory, string savePath)
         {
 
-            using (StreamWriter writer = File.AppendText(savePath + "\\ErrorNN.csv"))
+            using (StreamWriter writer = File.CreateText(savePath + "\\ErrorNN.csv"))
             {
                 // Write header
                 writer.WriteLine("Epoch;Loss");
@@ -182,7 +192,7 @@ namespace CreateNeuralNetWork
                 {
                     double[] newCombination = new double[8];
                     Array.Copy(combination, newCombination, 7);
-                    newCombination[7] = -1; // Assign an output value of -1 for the new combination
+                    newCombination[7] = 0; // Assign an output value of 0 for the new combination
                     newCombinations.Add(newCombination);
                 }
             }
@@ -192,8 +202,51 @@ namespace CreateNeuralNetWork
 
             return updatedTraining;
         }
-    }
 
+        public double[][] NormalizeData(double[][] data)
+        {
+            int rows = data.Length;
+            int cols = data[0].Length;
+
+            // Create a new array to store the normalized data
+            double[][] normalizedData = new double[rows][];
+
+            // Calculate the maximum and minimum values for each feature (including the output)
+            double[] maxValues = new double[cols];
+            double[] minValues = new double[cols];
+            for (int j = 0; j < cols; j++)
+            {
+                maxValues[j] = double.MinValue;
+                minValues[j] = double.MaxValue;
+            }
+
+            for (int i = 0; i < rows; i++)
+            {
+                for (int j = 0; j < cols; j++)
+                {
+                    double value = data[i][j];
+                    if (value > maxValues[j])
+                        maxValues[j] = value;
+                    if (value < minValues[j])
+                        minValues[j] = value;
+                }
+            }
+
+            // Normalize the data using min-max scaling
+            for (int i = 0; i < rows; i++)
+            {
+                normalizedData[i] = new double[cols];
+                for (int j = 0; j < cols; j++)
+                {
+                    double value = data[i][j];
+                    double normalizedValue = (value - minValues[j]) / (maxValues[j] - minValues[j]);
+                    normalizedData[i][j] = normalizedValue;
+                }
+            }
+
+            return normalizedData;
+        }
+    }
     public class TrainingHistory
     {
         public List<double> Loss { get; set; }
