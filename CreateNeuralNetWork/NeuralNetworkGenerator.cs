@@ -16,7 +16,13 @@ namespace CreateNeuralNetWork
 
         private Session session = null;
 
-        public Graph BuildNeuralNetwork()
+        public enum NeuralNetworkType
+        {
+            continous,
+            distinct
+        }
+
+        public Graph BuildNeuralNetwork(NeuralNetworkType nnType)
         {
             //Environment.SetEnvironmentVariable("TF_CPP_MIN_LOG_LEVEL", "2");
             tf.Context.log_device_placement(true);
@@ -32,16 +38,21 @@ namespace CreateNeuralNetWork
             var weights2 = tf.Variable(tf.random.normal(new Shape(10, 1)), dtype: TF_DataType.TF_DOUBLE, name: "weights2", trainable: true);
             var biases2 = tf.Variable(tf.zeros(new Shape(1)), dtype: TF_DataType.TF_DOUBLE, name: "biases2", trainable: true);
 
-            // Define the hidden layer
-            //var hidden = tf.add(tf.matmul(input, weights1), biases1);
-            var hidden = tf.nn.relu(tf.add(tf.matmul(input, weights1), biases1));
+            Tensor? hidden;
+            Tensor? output;
+            // Define the hidden and output layer
+            if (nnType == NeuralNetworkType.distinct)
+            {
+                hidden = tf.nn.relu(tf.add(tf.matmul(input, weights1), biases1));
+                tf.nn.softmax(tf.add(tf.matmul(hidden, weights2), biases2, "label"));
+            }
+            else
+            {
+                hidden = tf.add(tf.matmul(input, weights1), biases1);
+                output = tf.add(tf.matmul(hidden, weights2), biases2, "label");
+                tf.sigmoid(output, "activated_output");
 
-            // Define the output layer
-            //var output = tf.add(tf.matmul(hidden, weights2), biases2, "label");
-            var output = tf.nn.softmax(tf.add(tf.matmul(hidden, weights2), biases2, "label"));
-
-            // Apply the activation function to the output layer (e.g., sigmoid)
-            //var activatedOutput = tf.sigmoid(output, "activated_output");
+            }
 
             return graph;
         }
@@ -58,12 +69,13 @@ namespace CreateNeuralNetWork
             double[,] multidimensionalInput = prepareInput4NN(inputs, rows, cols);
 
             int numClasses = 10; // Assuming 10 classes (0 to 9)
-            double[][] oneHotLabels = new double[labels.Length][];
+            double[,] oneHotLabels = new double[labels.Length, numClasses];
             for (int i = 0; i < labels.Length; i++)
             {
                 int classIndex = (int)labels[i];
-                oneHotLabels[i] = new double[numClasses];
-                oneHotLabels[i][classIndex] = 1;
+                if (classIndex == -1)
+                    continue;
+                oneHotLabels[i, classIndex] = 1;
             }
 
 
@@ -192,7 +204,7 @@ namespace CreateNeuralNetWork
                 {
                     double[] newCombination = new double[8];
                     Array.Copy(combination, newCombination, 7);
-                    newCombination[7] = 0; // Assign an output value of 0 for the new combination
+                    newCombination[7] = -1; // Assign an output value of 0 for the new combination
                     newCombinations.Add(newCombination);
                 }
             }
